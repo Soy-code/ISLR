@@ -1,0 +1,196 @@
+---
+title: "Assignment02"
+author: "Soyeon Hwang"
+date: \today
+output:
+  pdf_document: 
+    number_sections: yes
+  latex-engine : xelatex
+header-includes:
+   \usepackage{kotex}
+mainfont: NanumGothic
+fontsize: 12pt
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, include=FALSE, echo = TRUE, results = 'hide', warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries
+### load library
+```{r}
+library(MASS)
+library(ISLR)
+```
+
+# Simple linear regression
+### load data 
+```{r}
+fix(Boston)
+names(Boston)
+```
+
+### regression fit
+```{r}
+lm.fit = lm(medv ~ lstat, data = Boston)
+attach(Boston)
+lm.fit = lm(medv ~ lstat)
+lm.fit
+```
+
+```{r}
+summary(lm.fit)
+```
+
+other pieces of information
+```{r}
+names(lm.fit)
+```
+
+confidence interval
+```{r}
+confint(lm.fit)
+```
+
+predicted values
+```{r}
+predict(lm.fit, data.frame(lstat = c(5, 10, 15)), 
+        interval = "prediction") 
+```
+5, 10, 15번 째 행에 대해서 prediction하고 신뢰구간
+
+```{r}
+plot(lstat, medv)
+abline(lm.fit, col = "red")
+```
+
+```{r}
+plot(lstat, medv)
+abline(lm.fit, lwd = 3, col = "red")
+```
+
+```{r}
+plot(lstat, medv, col = "red")
+```
+
+```{r}
+plot(lstat, medv, pch = 20)
+```
+
+```{r}
+plot(lstat, medv, pch = "+")
+```
+
+```{r}
+plot(1:20, 1:20, pch = 1:20)
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit)
+```
+
+```{r}
+par(mfrow = c(1, 1))
+plot(predict(lm.fit), residuals(lm.fit))
+```
+
+```{r}
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+
+```{r}
+plot(hatvalues(lm.fit))
+which.max(hatvalues(lm.fit))
+```
+
+### Multiple linear regression
+```{r}
+lm.fit = lm(medv ~ lstat + age, data = Boston)
+summary(lm.fit)
+```
+
+```{r}
+lm.fit = lm(medv ~ ., data = Boston)
+summary(lm.fit)
+```
+
+```{r}
+library(car)
+vif(lm.fit)
+```
+vif : variation inflation factor
+
+```{r}
+lm.fit1 = lm(medv ~. -age, data = Boston) #without age variable
+summary(lm.fit1)
+```
+
+### Interaction Terms
+```{r}
+summary(lm(medv ~ lstat*age, data = Boston))
+```
+
+### Non-linear Tranformations of the predictors
+```{r}
+lm.fit2 = lm(medv ~ lstat + I(lstat^2))
+summary(lm.fit2)
+```
+
+```{r}
+lm.fit = lm(medv ~ lstat)
+anova(lm.fit, lm.fit2)
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit2)
+```
+
+```{r}
+lm.fit5 = lm(medv ~ poly(lstat, 5))
+summary(lm.fit5)
+```
+poly(.., 5) : fifth-order 
+
+```{r}
+summary(lm(medv ~ log(rm), data = Boston))
+```
+
+### Qualitative predictors 
+```{r}
+fix(Carseats)
+names(Carseats)
+```
+
+```{r}
+lm.fit = lm(Sales ~ . + Income:Advertising + Price:Age, data = Carseats)
+summary(lm.fit)
+```
+
+```{r}
+attach(Carseats)
+contrasts(ShelveLoc)
+```
+
+### Writing functions
+```{r}
+LoadLibraries = function()
+{
+   library(ISLR)
+   library(MASS)
+   print("The libraries have been loaded.")
+}
+```
+
+```{r}
+LoadLibraries()
+```
+
+
+
+
+
+
