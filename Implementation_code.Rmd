@@ -1,0 +1,384 @@
+---
+title: "STA713 함수추정방법 기말고사"
+author: "황소연"
+date: '2020 6 22'
+output:
+  pdf_document:
+    includes:
+      in_header: Markdown.tex
+  html_document:
+    df_print: paged
+fontsize: 12pt
+editor_options:
+  chunk_output_type: consol
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.align = 'center')
+rm(list = ls())
+```
+
+# 유의사항
+
+##### * 시험범위는 ISLR 1 ~ 7장, 9장입니다. 시험범위 이외의 방법론은 사용불가입니다.
+##### * 시드가 주어진 문항에 대해 반드시 처음 코드를 `set.seed(1)`로 실행하여 답하시기 바랍니다.
+##### * 1, 2번 문제에서 주어진 함수이외의 R-패키지의 함수를 사용하지 마시기 바랍니다. (내장함수만 사용할 것)
+##### * 4, 5번 문제의 데이터는 출제자가 일부를 가지고 있습니다(시험 데이터). 모형의 정확도 평가를 위해 시험 데이터에 대해 예측이 가능한 객체 형태로 답을 하시기 바랍니다.
+##### * 수강생들끼리 상의하여 문제를 푸는 것을 금합니다. (답안 확인시 발각되면 0점)
+##### * 제출기한 : 2020년 6월 22일 17:00시
+##### * Rmd파일을 html로 변환 후 변환된 파일과 Rmd파일을 압축하여 kjg612@korea.ac.kr로 제출해주시기 바랍니다.
+##### * 이메일을 보낼 시 본인 참조하시기 바랍니다. (제출 시간 확인용)
+##### * 이메일 제목 : STA713_Final_학번
+##### * Rmd파일과 변환된 파일 제목 : STA713_Final_학번
+##### * 시험 문제와 관련한 문의사항은 kjg612@korea.ac.kr 로 보내주시면 됩니다.
+
+
+### Q1.
+연속형 확률 변수 $Y$ 와 $X$ 에 대해 다음 회귀모형을 가정하고, 기저함수 $f$ 를 KNN 회귀 방법에 기반하여 추정하려고 한다.
+$$
+Y = f(X) + \varepsilon = \sin (X^2) + \varepsilon \;,\;\varepsilon \sim N(0, 1.5^2) \\
+X \sim \text{Uniform} (0, 1.5 \pi) \, , \; X \;, \varepsilon \; \text{은 서로 독립}
+$$
+
+(a) 위의 확률 모형으로 부터 데이터 $\{(x_i, y_i)\}_{i=1}^{200}$ 를 독립적으로 생성하시오.
+
+```{r, fig.width = 6, fig.height = 6}
+set.seed(1)
+n = 200
+X = runif(n, 0, 1.5 * pi)
+f = sin(X^2)
+Y = f + rnorm(n, sd = 0.15)
+plot(X, Y, main = "Data and true function", col = "grey", cex = 1.4)
+grid_x = seq(0, 1.5 * pi, length = 10000)
+lines(grid_x, sin(grid_x^2), col = "grey")
+```
+
+
+(b) R-패키지 FNN 의 내장함수 `knnx.index` 를 이용하여 $x = 3$ 에서 $K = 10$ 일때, 이웃을 구하시오 (`knnx.index` 함수의 인자는 data, query, K 로 각각 이웃의 후보, 기준값, 이웃의 개수로 이해할 수 있다. 
+출력값으로 query 를 기준으로 $K$ 개 이웃에 해당하는 data 의 인덱스를 원소로 하는 행렬을 반환한다.)
+
+```{r}
+df = cbind(X, Y)
+
+library(FNN)
+idx = knnx.index(X, 3, 10) ; idx
+df[idx, ] # 10-nearest neighbors at x = 3
+```
+
+(c) 데이터의 산점도를 검은 점으로 그린 후, 문항 (b) 에서 구한 이웃을 빨간 점으로 표시하시오. $x = 3$ 에서 KNN 회귀값을 예측하고 수평선으로 그리시오.
+
+```{r, fig.width=6, fig.height=6}
+# 예측한 KNN 회귀값
+print(paste("fitted value at x = 3: ", mean(df[idx, 2])))
+
+plot(X, Y, col = "grey", cex = 1.4)
+points(df[idx, 1], df[idx, 2], col = "red", cex = 1.4)
+lines(sort(df[idx, 1]), rep(mean(df[idx, 2]), length(df[idx, 2])),
+      lwd = 2, col = "blue")
+abline(v = c(min(sort(df[idx, 1])), max(sort(df[idx, 1]))), lty = 2, col = "grey")
+legend("topleft", legend = c("fitted KNN value"), lty = 1, lwd = 2, col = "blue", 
+       cex = 0.9)
+```
+
+
+(d) 함수 `knnx.index` 을 이용하여 $f$ 에 대한 KKN 추정치를 구하고 데이터 산점도 위에 그리시오. (단, $K = 5$ 로 설정하시오)
+
+```{r, fig.width=6, fig.height=6}
+grid_x = seq(min(df[, 1]), max(df[, 1]), length = 10000)
+idx_d = knnx.index(sort(df[, 1]), grid_x, 5)
+y_ordered = df[order(df[, 1]), 2]
+yhat = c()
+for (i in 1:nrow(idx_d))
+{
+   pred = mean(y_ordered[idx_d[i, ]])
+   yhat[i] = pred
+}
+length(yhat)
+plot(X, Y, col = "grey", cex = 1.4, main = "Estimated function with K = 5")
+lines(grid_x, yhat, col = "blue", lwd = 2)
+```
+
+
+(f) 문항 (d) 를 $K = 1, 5, 10, 30, 100, 200$ 에 대해 반복하시오.
+
+```{r, fig.height=6, fig.wid = 9}
+par(mfrow = c(2, 3))
+K = c(1, 5, 10, 30, 100, 200)
+for (k in K)
+{
+   grid_x = seq(min(df[, 1]), max(df[, 1]), length = 10000)
+   idx_d = knnx.index(sort(df[, 1]), grid_x, k)
+   y_ordered = df[order(df[, 1]), 2]
+   
+   yhat = c()
+   for (i in 1:nrow(idx_d))
+   {
+      pred = mean(y_ordered[idx_d[i, ]])
+      yhat[i] = pred
+   }
+   
+   plot(X, Y, main = paste("k = ", k), cex = 1.4, col = "grey", cex.main = 1.3)
+   lines(grid_x, yhat, col = "blue", lwd = 2)
+}
+```
+
+
+(g) $K = 1, 2, \ldots, 40$ 에 대하여 10-겹 교차검증를 수행하고 최적의 K 를 제시하시오. (R-패키지 caret 의 `createFolds(x, k = 10, list = TRUE, returnTrain = TRUE)` 를 이용하여 겹을 생성하시오.)
+
+```{r, fig.width=6, fig.height=6}
+par(mfrow = c(1, 1))
+# set folds
+set.seed(1)
+library(caret)
+fold = createFolds(X, k = 10, list = TRUE, returnTrain = TRUE)
+
+# cv function
+df_origin = df
+K = c(1:40)
+mse_list_k = c()
+
+# k = complexity 
+for (k in K)  
+{  
+   mse_fold = c()
+   for (i in 1:10)
+   {  
+      # split into validation & training 
+      df_train = df_origin[unlist(fold[i]), ]
+      df_val = df_origin[-unlist(fold[i]), ]
+      
+      # valid neighbors 
+      idx = knnx.index(df_train[, 1], df_val[, 1], k)
+      
+      # yhat
+      fitted = c()
+      for (l in 1:nrow(df_val))
+      {  
+         pred = mean(df_train[idx[l, ], 2])
+         fitted[l] = pred
+      }
+      
+      # mse at i-th fold
+      mse_fold[i] = mean((df_val[, 2] - fitted)^2)
+   }
+   mse_list_k[k] = mean(mse_fold)
+}
+
+plot(c(1:40), mse_list_k, main = "CV error plot", 
+     xlab = "k", ylab = "CV error", type = "o", cex = 1.4, col = "grey", 
+     pch = 16, lwd = 2, axes = F)
+points(which.min(mse_list_k), mse_list_k[which.min(mse_list_k)], 
+       col = "red", pch = 16, cex = 1.4)
+abline(v = 4, lty = 2, col = "grey")
+abline(h = )
+ticks = c(0, 4, 10, 20, 30, 40)
+axis(side = 1, at = ticks)
+axis(side = 2)
+
+# 즉, 최적의 k는 4
+```
+
+
+(h) 
+문항 (g) 에서 구한 최적의 K 에 대해 $f$ 에 대한 KKN 추정치를 데이터 산점도 위에 그리시오.
+
+```{r, fig.height=6, fig.width=6}
+grid_x = seq(min(df[, 1]), max(df[, 1]), length = 10000)
+idx_d = knnx.index(sort(df[, 1]), grid_x, 4)  # k = 4
+y_ordered = df[order(df[, 1]), 2]
+yhat = c()
+for (i in 1:nrow(idx_d))
+{
+   pred = mean(y_ordered[idx_d[i, ]])
+   yhat[i] = pred
+}
+
+plot(X, Y, col = "grey", cex = 1.4, main = "Best estimated function", 
+     cex.main = 1.3)
+lines(grid_x, yhat, col = "blue", lwd = 2)
+```
+
+
+### Q2. 
+로지스틱 회귀모형을 이용하여 Smarket 데이터의 범주형 변수 Direction 의 클래스를 분류하는 문제를 고려하자. 
+
+(a) R-패키지 ISLR 의 Smarket 데이터로부터 Lag1, Lag2, Lag3, Lag4, Lag5, Volume 을 예측변수로, Direction 을 반응변수로 하여 로지스틱 회귀모형으로 적합하시오. (이때, Up은 성공으로 간주한다.)
+
+```{r}
+library(ISLR)
+str(Smarket)
+
+lr_fit = glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+             data = Smarket, family = binomial)
+summary(lr_fit)
+contrasts(Smarket$Direction) # Up : success
+```
+
+(b) 문턱값(threshold)을 0.5 로 하여 혼동행렬(confusion matrix)을 구하시오.
+
+```{r}
+probs = predict(lr_fit, type = "response")
+pred = ifelse(probs > 0.5, "Up", "Down")
+
+# confusion matrix
+table(pred, Smarket$Direction)
+```
+
+(c) ROC 곡선을 그리시오. (문턱값은 `seq(0, 1, length.out = 1000)` 으로부터 생성하라.)
+
+```{r, fig.height=6, fig.width=6}
+threshold = seq(0, 1, length.out = 1000)
+probs = predict(lr_fit, type = "response")
+sens = c()
+spec = c()
+for (i in 1:length(threshold))
+{
+   cutoff = threshold[i]
+   # confusino matrix 
+   pred = ifelse(probs > cutoff, "Up", "Down")
+   tp = sum(pred == "Up" & Smarket$Direction == "Up")
+   fp = sum(pred == "Up" & Smarket$Direction == "Down")
+   fn = sum(pred == "Down" & Smarket$Direction == "Up")
+   tn = sum(pred == "Down" & Smarket$Direction == "Down")
+   # conf_mat = as.matrix(table(pred, Smarket$Direction))
+   
+   # sensitivity and specificity
+   sens[i] = tp / (tp + fn)
+   spec[i] = tn / (fp + tn)
+}
+
+plot(1-spec, sens, type = "l", lwd = 2, main = "ROC curve", 
+     xlab = "1 - Specificity", ylab = "Sensitivity", cex.main = 1.3)
+abline(a = 0, b = 1.0, col = "grey")
+```
+
+
+### Q3. 
+$+1$ 또는 $-1$ 의 값을 갖는 범주형 확률 변수 $Y$ 와 2차원 연속형 확률 변수에 대해 다음 확률 모형을 가정하자. 
+\begin{align*}
+X | Y = 1 \sim N(\mu_1, \Sigma), & \quad 
+X | Y = -1 \sim N(\mu_2, \Sigma) \\
+P(Y = 1) = & P(Y = -1) = \frac{1}{2}
+\end{align*}
+이때, $\mu_1 = (7, 7)^T$, $\mu_2 = (3, 5)^T$, $\Sigma = \begin{bmatrix} 2 & 0 \\ 0 & 2 \end{bmatrix}$
+로 주어진다. data3 는 위 확률 모형에 의해 생성한
+$200$ 개의 관측값들이다. 
+
+```{r}
+data3 = read.csv("data3.csv")
+str(data3)
+```
+
+(a) $1$ 의 값을 갖는 $Y$ 의 관측치를 파란점으로 $-1$ 의 값을 갖는 $Y$ 의 관측치를 빨간점으로 그리시오.
+
+```{r, fig.height=6, fig.width=6}
+red = data3[data3$y == -1, ]
+blue = data3[data3$y == 1, ]
+plot(red$x1, red$x2, col = "red", 
+     xlim = c(min(data3$x1), max(data3$x1)), 
+     ylim = c(min(data3$x2), max(data3$x2)), 
+     xlab = "X1", ylab = "X2", cex = 1.4)
+points(blue$x1, blue$x2, col = "blue", cex = 1.4)
+legend("topleft", legend = c("+1", "-1"), pch = c(1, 1),
+       col = c("blue", "red"))
+```
+
+(b) 위 확률모형을 이용하여 문항 (a) 에서 그린 플롯에 베이즈 결정경계를 검은 실선으로 그리시오.
+
+```{r, fig.height = 6, fig.width = 6}
+# same covariance => LDA
+mu1 = matrix(c(7, 7), 2, 1, byrow = T)
+mu2 = matrix(c(3, 5), 2, 1, byrow = T) 
+sigma = matrix(c(2, 0, 0, 2), 2, 2, byrow = T)
+pi1 = pi2 = 1/2
+
+a1 = t(mu1) %*% solve(sigma)  
+b1 = - 1/2 * t(mu1) %*% solve(sigma) %*% mu1 + log(pi1)
+a2 = t(mu2) %*% solve(sigma)
+b2 = - 1/2 * t(mu2) %*% solve(sigma) %*% mu2 + log(pi2)
+
+a = a1 - a2
+b = b1 - b2
+
+plot(red$x1, red$x2, col = "red", 
+     xlim = c(min(data3$x1), max(data3$x1)), 
+     ylim = c(min(data3$x2), max(data3$x2)), 
+     xlab = "X1", ylab = "X2", cex = 1.4)
+points(blue$x1, blue$x2, col = "blue", cex = 1.4)
+abline(a = -b, b = - a[1], lwd = 2)
+legend("topleft", legend = c("LDA estimates", "+1", "-1"), pch = c(NA, 1, 1),
+       lty = c(1, NA, NA), lwd = c(2, NA, NA), 
+       col = c("black", "blue", "red"))
+```
+
+### Q4. 
+data4 는 2 개의 연속형 변수와 $-1$ 또는 $+1$ 의 값을 갖는 범주형 변수의 관측값들을 포함한다. $x_1$ 과 $x_2$ 를 예측변수로 하여 반응변수 $y$ 를 예측하는 분류 모형을 만들고자 한다.
+
+```{r, fig.height=6, fig.width=6}
+data4 = read.csv("data4_train.csv")
+
+orange = data4[data4$y == -1, ]
+blue = data4[data4$y == 1, ]
+plot(orange$x1, orange$x2, col = "orange", 
+     xlim = c(min(data4$x1), max(data4$x1)), 
+     ylim = c(min(data4$x2), max(data4$x2)), 
+     xlab = "X1", ylab = "X2", cex = 1.4)
+points(blue$x1, blue$x2, col = "blue", cex = 1.4)
+legend("topleft", legend = c("+1", "-1"), pch = c(1, 1),
+       col = c("blue", "orange"))
+```
+
+data4 를 이용하여 예측 모형을 제시하시오. (시험 데이터를 통해 모형의 성능을 평가할 예정)
+
+```{r, fig.height=6, fig.width=6}
+set.seed(1)
+
+# library and data
+library(e1071)
+str(data4)
+data4$y = as.factor(data4$y)
+
+# search 
+tune.out = tune(svm, y~., data = data4, kernel = "linear",
+                ranges=list(cost=c(0.1,1,10,100,1000),
+                            gamma=c(0.5,1,2,3,4) ))
+summary(tune.out) 
+
+# best: gamma = 0.5,  cost = 1
+fit_svm = svm(y ~., data = data4, kernel = "linear", gamma = 0.5, cost = 1)
+summary(fit_svm)
+plot(fit_svm, data4)
+```
+
+Performance 평가
+```{r, fig.height=6, fig.width=6}
+# pred = predict(fit_svm, test_X)
+```
+
+### Q5. 
+data5 는 두 개의 연속형 변수의 관측값들을 포함한다. $x$ 를 예측변수로, $y$ 를 반응변수로 하여 예측 모형을 만들고자 한다.
+
+```{r, fig.height=6, fig.width=6}
+data5 = read.csv("data5_train.csv")
+plot(data5$x, data5$y, col = "grey")
+abline(v = 0.5, lty = 2, col = "grey")
+```
+
+data5 를 이용하여 예측 모형을 제시하시오. (시험 데이터를 통해 모형의 성능을 평가할 예정)
+
+```{r, fig.width=6, fig.height=6}
+library(cobs)
+knots = seq(0, 1, length = 100)
+fit_spl = cobs(data5$x, data5$y, knots = knots, degree = 1)
+plot(fit_spl, xlab = "X", ylab = "Y", main = "Estimated function", col = "grey", 
+     cex = 1.4)
+legend("topleft", legend = c("fitted line"), lty = c(1), 
+       lwd = c(2), col = c("red"))
+```
+
+Performace 평가
+```{r, fig.width=6, fig.height=6}
+# pred = data.frame(predict(fit_spl, test_X))$fit
+```
+
